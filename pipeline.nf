@@ -1,23 +1,12 @@
 #!/usr/bin/env nextflow
 
-// TODO: Decouple these and place them in nextflow.config
-workflow.onError {
-    println "Oops... Pipeline execution stopped with the following message: ${workflow.errorMessage}"
-}
-
-workflow.onComplete {
-    println "Pipeline completed at: $workflow.complete"
-    println "Execution status: ${ workflow.success ? 'OK' : 'failed' }"
-}
-
 // Default parameters
 params.outdir = './pipeline_results'
 params.reads = './reads/*_{R1,R2}.fastq.gz'
-params.pilon_memory = '8G'
 
 // Flags to run optional post-processing steps
-params.plasmids = false
-params.amr = false
+// params.plasmids = false
+// params.amr = false
 params.annotate = false
 params.mlst = false
 
@@ -27,7 +16,7 @@ reads = Channel
     .set { read_pairs_ch }
 
 process runBBMapReadRepair {
-    conda '/home/forest/miniconda3/envs/bbmap_nextflow'
+    container 'staphb/bbtools:latest'
     tag "$pair_id"
 
     input:
@@ -44,7 +33,7 @@ process runBBMapReadRepair {
 
 
 process runBBMapAdapterTrimming {
-    conda '/home/forest/miniconda3/envs/bbmap_nextflow'
+    container 'staphb/bbtools:latest'
     tag "$pair_id"
 
     input:
@@ -60,7 +49,7 @@ process runBBMapAdapterTrimming {
 }
 
 process runBBMapQualityFiltering {
-    conda '/home/forest/miniconda3/envs/bbmap_nextflow'
+    container 'staphb/bbtools:latest'
     tag "$pair_id"
 
     input:
@@ -76,7 +65,7 @@ process runBBMapQualityFiltering {
 }
 
 process runBBMapReadCorrection {
-    conda '/home/forest/miniconda3/envs/bbmap_nextflow'
+    container 'staphb/bbtools:latest'
     tag "$pair_id"
     publishDir "$params.outdir/$pair_id", mode: 'symlink'
 
@@ -93,7 +82,7 @@ process runBBMapReadCorrection {
 }
 
 process runSKESA {
-    conda '/home/forest/miniconda3/envs/skesa_nextflow'
+    container 'staphb/skesa:latest'
     tag "$pair_id"
 
     input:
@@ -109,7 +98,7 @@ process runSKESA {
 }
 
 process produceBAM {
-    conda '/home/forest/miniconda3/envs/bbmap_nextflow'
+    container 'staphb/bbtools:latest'
     tag "$pair_id"
 
     input:
@@ -125,7 +114,7 @@ process produceBAM {
 }
 
 process sortBAM {
-    conda '/home/forest/miniconda3/envs/samtools_nextflow'
+    container 'staphb/samtools:latest'
     tag "$pair_id"
     publishDir "$params.outdir/$pair_id", mode: 'symlink'
 
@@ -142,7 +131,7 @@ process sortBAM {
 }
 
 process indexBAM {
-    conda '/home/forest/miniconda3/envs/samtools_nextflow'
+    container 'staphb/samtools:latest'
     tag "$pair_id"
     publishDir "$params.outdir/$pair_id", mode: 'symlink'
 
@@ -160,12 +149,11 @@ process indexBAM {
 }
 
 process runPilon {
-    conda '/home/forest/miniconda3/envs/pilon_nextflow'
+    container 'staphb/pilon:latest'
     tag "$pair_id"
     publishDir "$params.outdir/$pair_id", mode: 'symlink'
 
     input:
-    val(pilon_memory) from params.pilon_memory
     tuple val(pair_id), path(assembly), path(indexed_bamfile), path(bam_indexfile) from indexed_bam_ch
 
     // Output final polished assembly into n separate channels for post-processing steps
@@ -177,12 +165,12 @@ process runPilon {
 
     script:
     """
-    pilon -Xmx${pilon_memory} --genome $assembly --bam $indexed_bamfile --outdir $params.outdir --output $pair_id
+    pilon --genome $assembly --bam $indexed_bamfile --outdir $params.outdir --output $pair_id
     """
 }
 
 process runProkka {
-    conda '/home/forest/miniconda3/envs/prokka_nextflow'
+    container 'staphb/prokka:latest'
     tag "$pair_id"
     publishDir "$params.outdir/$pair_id/", mode: 'symlink'
 
@@ -202,49 +190,49 @@ process runProkka {
     """
 }
 
-process runRGI {
-    conda '/home/forest/miniconda3/envs/rgi'
-    tag "$pair_id"
-    publishDir "$params.outdir/$pair_id/amr", mode: 'symlink'
+// process runRGI {
+//     conda '/home/forest/miniconda3/envs/rgi'
+//     tag "$pair_id"
+//     publishDir "$params.outdir/$pair_id/amr", mode: 'symlink'
 
-    when:
-    params.amr
+//     when:
+//     params.amr
 
-    input:
-    tuple pair_id, file(assembly) from polished_assembly_ch2
+//     input:
+//     tuple pair_id, file(assembly) from polished_assembly_ch2
 
-    output:
-    path('rgi*')
+//     output:
+//     path('rgi*')
 
-    script:
-    """
-	rgi main -i $assembly -o rgi --clean -d wgs
-    """
-}
+//     script:
+//     """
+// 	rgi main -i $assembly -o rgi --clean -d wgs
+//     """
+// }
 
-process runMobRecon {
-    conda '/home/forest/miniconda3/envs/mobsuite'
-    tag "$pair_id"
-    publishDir "$params.outdir/$pair_id/", mode: 'symlink'
+// process runMobRecon {
+//     conda '/home/forest/miniconda3/envs/mobsuite'
+//     tag "$pair_id"
+//     publishDir "$params.outdir/$pair_id/", mode: 'symlink'
 
-    when:
-    params.plasmids
+//     when:
+//     params.plasmids
 
-    input:
-    tuple pair_id, file(assembly) from polished_assembly_ch3
+//     input:
+//     tuple pair_id, file(assembly) from polished_assembly_ch3
 
-    output:
-    path('plasmids/*')
+//     output:
+//     path('plasmids/*')
 
-    script:
-    """
-    mkdir -p plasmids
-    mob_recon --infile $assembly -o ./plasmids --run_typer --force
-    """
-}
+//     script:
+//     """
+//     mkdir -p plasmids
+//     mob_recon --infile $assembly -o ./plasmids --run_typer --force
+//     """
+// }
 
 process runMLST {
-    conda '/home/forest/miniconda3/envs/mlst_nextflow'
+    container 'staphb/mlst:latest'
     tag "$pair_id"
     publishDir "$params.outdir/$pair_id/mlst", mode: 'symlink'
 
