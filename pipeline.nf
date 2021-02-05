@@ -5,7 +5,7 @@ params.outdir = './pipeline_results'
 params.reads = './reads/*_{R1,R2}.fastq.gz'
 
 // Flags to run optional post-processing steps
-// params.plasmids = false
+params.plasmids = false
 // params.amr = false
 params.annotate = false
 params.mlst = false
@@ -210,26 +210,26 @@ process runProkka {
 //     """
 // }
 
-// process runMobRecon {
-//     conda '/home/forest/miniconda3/envs/mobsuite'
-//     tag "$pair_id"
-//     publishDir "$params.outdir/$pair_id/", mode: 'symlink'
+process runMobRecon {
+    container 'kbessonov/mob_suite:3.0.1'
+    tag "$pair_id"
+    publishDir "$params.outdir/$pair_id/", mode: 'symlink'
 
-//     when:
-//     params.plasmids
+    when:
+    params.plasmids
 
-//     input:
-//     tuple pair_id, file(assembly) from polished_assembly_ch3
+    input:
+    tuple pair_id, file(assembly) from polished_assembly_ch3
 
-//     output:
-//     path('plasmids/*')
+    output:
+    path('plasmids/*')
 
-//     script:
-//     """
-//     mkdir -p plasmids
-//     mob_recon --infile $assembly -o ./plasmids --run_typer --force
-//     """
-// }
+    script:
+    """
+    mkdir -p plasmids
+    mob_recon --infile $assembly -o ./plasmids --run_typer --force
+    """
+}
 
 process runMLST {
     container 'staphb/mlst:latest'
