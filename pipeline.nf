@@ -4,6 +4,10 @@
 params.outdir = './pipeline_results'
 params.reads = './reads/*_{R1,R2}.fastq.gz'
 
+// QC params
+params.fastqc = false
+params.quast = false
+
 // Flags to run optional post-processing steps
 params.plasmids = false
 // params.amr = false
@@ -14,6 +18,31 @@ reads = Channel
     .fromFilePairs( params.reads , flat:true)
     .ifEmpty { error "Cannot find any reads matching: ${params.reads}" }
     .set { read_pairs_ch }
+
+reads = Channel
+    .fromFilePairs( params.reads , flat:true)
+    .set { reads_prefilter_ch }
+
+process FastQCPre {
+    container 'staphb/fastqc:latest'
+    tag "$pair_id"
+    publishDir "$params.outdir/$pair_id", mode: 'symlink'
+
+    when:
+    params.fastqc
+
+    input: 
+    tuple val(pair_id), path(fwd_reads), path(rev_reads) from reads_prefilter_ch
+
+    output:
+    path('fastqc/prefilter/*')
+
+    script:
+    """
+    mkdir -p ./fastqc/prefilter
+    fastqc -o ./fastqc/prefilter $fwd_reads $rev_reads 
+    """
+}
 
 process runBBMapReadRepair {
     container 'staphb/bbtools:latest'
@@ -73,11 +102,32 @@ process runBBMapReadCorrection {
     tuple val(pair_id), path(fwd_reads), path(rev_reads) from read_pairs_qfilter_ch
 
     output:
-    tuple val(pair_id), path('*_R1.corrected.fastq.gz'), path('*_R2.corrected.fastq.gz') into read_pairs_corrected_ch
+    tuple val(pair_id), path('*_R1.corrected.fastq.gz'), path('*_R2.corrected.fastq.gz') into read_pairs_corrected_ch, reads_postqc_ch
 
     script:
     """
     tadpole.sh in1=$fwd_reads in2=$rev_reads out1=${pair_id}_R1.corrected.fastq.gz out2=${pair_id}_R2.corrected.fastq.gz mode=correct
+    """
+}
+
+process FastQCPost {
+    container 'staphb/fastqc:latest'
+    tag "$pair_id"
+    publishDir "$params.outdir/$pair_id", mode: 'symlink'
+
+    when:
+    params.fastqc
+
+    input: 
+    tuple val(pair_id), path(fwd_reads), path(rev_reads) from reads_postqc_ch
+
+    output:
+    path('fastqc/postfilter/*')
+
+    script:
+    """
+    mkdir -p ./fastqc/postfilter
+    fastqc -o ./fastqc/postfilter $fwd_reads $rev_reads 
     """
 }
 
@@ -140,7 +190,7 @@ process indexBAM {
     tuple val(pair_id), path(assembly), path(sorted_bamfile) from sorted_bam_ch
 
     output:
-    tuple val(pair_id), path(assembly), path(sorted_bamfile), path('*.bai') into indexed_bam_ch
+    tuple val(pair_id), path(assembly), path(sorted_bamfile), path('*.bai') into indexed_bam_ch, bamqc_ch
 
     script:
     """
@@ -161,12 +211,35 @@ process runPilon {
     tuple val(pair_id), path(assembly) into polished_assembly_ch1,
                 polished_assembly_ch2,
                 polished_assembly_ch3,
-                polished_assembly_ch4
+                polished_assembly_ch4,
+                polished_assembly_ch5
 
     script:
     """
     pilon --genome $assembly --bam $indexed_bamfile --outdir $params.outdir --output $pair_id
     """
+}
+
+process runQuast {
+    container 'staphb/quast:latest'
+    tag "$pair_id"
+    publishDir "$params.outdir/$pair_id", mode: 'symlink'
+
+    when:
+    params.quast
+
+    input:
+    tuple val(pair_id), path(assembly), path(bamfile), path(bam_indexfile) from bamqc_ch
+
+    output:
+    path('quast/*')
+
+    script:
+    """
+    mkdir -p ./quast
+    quast.py -o ./quast --labels $pair_id --glimmer --no-plots --no-icarus --no-snps $assembly
+    """
+
 }
 
 process runProkka {
