@@ -13,6 +13,8 @@ params.plasmids = false
 params.staramr = false
 params.annotate = false
 params.mlst = false
+params.abricate = false
+params.abricate_db = 'ncbi'
 
 reads = Channel
     .fromFilePairs( params.reads , flat:true)
@@ -212,7 +214,8 @@ process runPilon {
                 polished_assembly_ch2,
                 polished_assembly_ch3,
                 polished_assembly_ch4,
-                polished_assembly_ch5
+                polished_assembly_ch5,
+                polished_assembly_ch6
 
     script:
     """
@@ -266,7 +269,7 @@ process runProkka {
 process runStarAMR {
     container 'staphb/staramr:latest'
     tag "$pair_id"
-    publishDir "$params.outdir/$pair_id/staramr", mode: 'symlink'
+    publishDir "$params.outdir/$pair_id/", mode: 'symlink'
 
     when:
     params.staramr
@@ -278,9 +281,35 @@ process runStarAMR {
     path('staramr/*')
 
     // StarAMR currently hard coded to be very lenient with possible input genomes, maybe expose some parameters in the future
+    // StarAMR can't deal with an existing directory, so -resume will break. Have to attempt to remove dir first.
     script:
     """
-	staramr search --genome-size-lower-bound 100 --genome-size-upper-bound 8000000 --minimum-N50-value 5000 --minimum-contig-length 250 -o . $assembly
+    rm -rf ./staramr
+	staramr search --genome-size-lower-bound 100 --genome-size-upper-bound 8000000 --minimum-N50-value 5000 --minimum-contig-length 250 -o ./staramr $assembly
+    """
+}
+
+
+process runAbricate {
+    container 'staphb/abricate:latest'
+    tag "$pair_id"
+    publishDir "$params.outdir/$pair_id/", mode: 'symlink'
+
+    when:
+    params.abricate
+
+    input:
+    tuple pair_id, file(assembly) from polished_assembly_ch6
+    val(abricate_db) from params.abricate_db
+
+    output:
+    path('abricate/*')
+
+    // Abricate supports numerous databases; allow user to specify which one they'd like (default ncbi)
+    script:
+    """
+    mkdir -p abricate
+    abricate --db $abricate_db $assembly > ./abricate/${pair_id}_${abricate_db}.tab
     """
 }
 
