@@ -19,11 +19,13 @@ installation and configuration.
 4. Alignment of error-corrected reads against draft assembly with [BBmap](https://jgi.doe.gov/data-and-tools/bbtools/bb-tools-user-guide/bbmap-guide/)
 5. Polishing of assembly with [Pilon](https://github.com/broadinstitute/pilon/wiki)
 
-### Optional post-processing
+### Optional additional processing
+- [FastQC read quality assessment](https://www.bioinformatics.babraham.ac.uk/projects/fastqc/) `--fastqc`
+- [Quast assembly quality assessment](http://bioinf.spbau.ru/quast) `--quast`
 - [MLST profiling](https://github.com/tseemann/mlst) `--mlst`
-- [Gene annotation](https://github.com/tseemann/prokka) `--annotate`
-- [Plasmid detection](https://github.com/phac-nml/mob-suite) `--plasmids`
-- [AMR profiling](https://github.com/phac-nml/staramr) `--amr`
+- [Prokka gene annotation](https://github.com/tseemann/prokka) `--annotate`
+- [MobSuite plasmid detection](https://github.com/phac-nml/mob-suite) `--plasmids`
+- [StarAMR profiling](https://github.com/phac-nml/staramr) `--amr`
 
 ## Installation/Requirements
 Running this pipeline requires only `Nextflow` and `Docker`!
