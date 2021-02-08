@@ -25,7 +25,7 @@ installation and configuration.
 - [MLST profiling](https://github.com/tseemann/mlst) `--mlst`
 - [Prokka gene annotation](https://github.com/tseemann/prokka) `--annotate`
 - [MobSuite plasmid detection](https://github.com/phac-nml/mob-suite) `--plasmids`
-- [StarAMR profiling](https://github.com/phac-nml/staramr) `--amr`
+- [StarAMR profiling](https://github.com/phac-nml/staramr) `--staramr`
 
 ## Installation/Requirements
 Running this pipeline requires only `Nextflow` and `Docker`!

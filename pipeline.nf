@@ -10,7 +10,7 @@ params.quast = false
 
 // Flags to run optional post-processing steps
 params.plasmids = false
-// params.amr = false
+params.staramr = false
 params.annotate = false
 params.mlst = false
 
@@ -263,25 +263,26 @@ process runProkka {
     """
 }
 
-// process runRGI {
-//     conda '/home/forest/miniconda3/envs/rgi'
-//     tag "$pair_id"
-//     publishDir "$params.outdir/$pair_id/amr", mode: 'symlink'
+process runStarAMR {
+    container 'staphb/staramr:latest'
+    tag "$pair_id"
+    publishDir "$params.outdir/$pair_id/staramr", mode: 'symlink'
 
-//     when:
-//     params.amr
+    when:
+    params.staramr
 
-//     input:
-//     tuple pair_id, file(assembly) from polished_assembly_ch2
+    input:
+    tuple pair_id, file(assembly) from polished_assembly_ch2
 
-//     output:
-//     path('rgi*')
+    output:
+    path('staramr/*')
 
-//     script:
-//     """
-// 	rgi main -i $assembly -o rgi --clean -d wgs
-//     """
-// }
+    // StarAMR currently hard coded to be very lenient with possible input genomes, maybe expose some parameters in the future
+    script:
+    """
+	staramr search --genome-size-lower-bound 100 --genome-size-upper-bound 8000000 --minimum-N50-value 5000 --minimum-contig-length 250 -o . $assembly
+    """
+}
 
 process runMobRecon {
     container 'kbessonov/mob_suite:3.0.1'
@@ -323,8 +324,3 @@ process runMLST {
     mlst $assembly > ${pair_id}_mlst.tsv
     """
 }
-
-// process runConfindr {
-
-// }
-
