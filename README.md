@@ -37,7 +37,6 @@ Running the pipeline on paired-end reads with MLST and Prokka options enabled
 `nextflow pipeline.nf --outdir ./results --reads "./data/*_{R1,R2}.fastq.gz" --mlst --annotate `
 
 ## TODO:
-- Add pre- and post-assembly QC (FastQC, Quast, Qualimap)
 - Add full support for plasmid/AMR detection
 - Add support for long-read/hybrid assemblies (first with Unicycler/Trycycler)
 - Provide a nice, interactive summary report
