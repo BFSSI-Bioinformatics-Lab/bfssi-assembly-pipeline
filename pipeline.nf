@@ -215,7 +215,8 @@ process runPilon {
                 polished_assembly_ch3,
                 polished_assembly_ch4,
                 polished_assembly_ch5,
-                polished_assembly_ch6
+                polished_assembly_ch6,
+                polished_assembly_ch7
 
     script:
     """
@@ -232,7 +233,7 @@ process runQuast {
     params.quast
 
     input:
-    tuple val(pair_id), path(assembly), path(bamfile), path(bam_indexfile) from bamqc_ch
+    tuple val(pair_id), path(assembly) from polished_assembly_ch7
 
     output:
     path('quast/*')
